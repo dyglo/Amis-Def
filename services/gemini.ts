@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { IntelligenceAnalysis, Sitrep } from "../types";
+import { IntelligenceAnalysis, Sitrep, ThreatLevel } from "../types";
 
 export class IntelligenceService {
   private ai: GoogleGenAI;
@@ -24,7 +24,6 @@ export class IntelligenceService {
     `;
 
     try {
-      // Using gemini-3-flash-preview with googleSearch tool for real-time grounding
       const response = await this.ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt,
@@ -46,7 +45,6 @@ export class IntelligenceService {
       const text = response.text || "{}";
       const analysis = JSON.parse(text);
       
-      // Extract grounding links
       const links = response.candidates?.[0]?.groundingMetadata?.groundingChunks
         ?.filter(chunk => chunk.web)
         .map(chunk => ({
@@ -69,8 +67,67 @@ export class IntelligenceService {
     }
   }
 
+  async searchNewIntelligence(query: string): Promise<{ sitreps: Sitrep[], center: [number, number], zoom: number }> {
+    const prompt = `Act as an OSINT Intelligence Agent. 
+    Search for recent or historical conflict events, military maneuvers, or security incidents in the region: "${query}".
+    Return a JSON object with:
+    1. 'sitreps': an array of 3-5 event objects matching the Sitrep interface. 
+       Ensure id format is 'SR-EXT-XXX'. 
+       ThreatLevel must be one of: LOW, MEDIUM, HIGH, CRITICAL.
+       Category must be one of: CONFLICT, MARITIME, CYBER, POLITICAL.
+       Coordinates must be [latitude, longitude].
+    2. 'center': [latitude, longitude] representing the focal point of the region.
+    3. 'zoom': an integer (usually 4-8) for optimal visualization.`;
+
+    try {
+      const response = await this.ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          tools: [{ googleSearch: {} }],
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              sitreps: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    id: { type: Type.STRING },
+                    title: { type: Type.STRING },
+                    coordinates: { type: Type.ARRAY, items: { type: Type.NUMBER } },
+                    timestamp: { type: Type.STRING },
+                    threatLevel: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    category: { type: Type.STRING },
+                    entities: {
+                      type: Type.OBJECT,
+                      properties: {
+                        people: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        places: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        orgs: { type: Type.ARRAY, items: { type: Type.STRING } }
+                      }
+                    }
+                  }
+                }
+              },
+              center: { type: Type.ARRAY, items: { type: Type.NUMBER } },
+              zoom: { type: Type.NUMBER }
+            }
+          }
+        },
+      });
+
+      const text = response.text || "{}";
+      return JSON.parse(text);
+    } catch (error) {
+      console.error("Search intelligence failed:", error);
+      return { sitreps: [], center: [0, 0], zoom: 2 };
+    }
+  }
+
   async getMapContext(location: string): Promise<string> {
-    // Using gemini-2.5-flash for map-specific grounding
     try {
       const response = await this.ai.models.generateContent({
         model: "gemini-2.5-flash",

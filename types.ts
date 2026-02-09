@@ -19,6 +19,7 @@ export interface Sitrep {
     places: string[];
     orgs: string[];
   };
+  isNew?: boolean;
 }
 
 export interface IntelligenceAnalysis {

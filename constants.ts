@@ -4,6 +4,12 @@ import { ThreatLevel, Sitrep } from './types';
 export const MAP_CENTER: [number, number] = [34.0, 44.0]; // Near Middle East for tactical demo context
 export const INITIAL_ZOOM = 4;
 
+export const TILE_LAYERS = {
+  dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+  satellite: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  topo: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+};
+
 export const THEME_COLORS = {
   background: '#020617',
   accent: '#10b981', // Neon Green

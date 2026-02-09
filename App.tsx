@@ -1,48 +1,144 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { CommandCenter } from './components/CommandCenter';
 import { MapEngine } from './components/MapEngine';
 import { IntelligencePanel } from './components/IntelligencePanel';
+import { SearchDrawer, LayersDrawer, FilterDrawer, MenuDrawer } from './components/SidebarDrawers';
 import { Sitrep } from './types';
-import { MOCK_SITREPS } from './constants';
+import { MOCK_SITREPS, TILE_LAYERS } from './constants';
 import { Search, Map as MapIcon, Layers, Filter, Menu } from 'lucide-react';
+import { intelligenceService } from './services/gemini';
 
 const App: React.FC = () => {
   const [selectedSitrep, setSelectedSitrep] = useState<Sitrep | null>(null);
+  const [sitreps, setSitreps] = useState<Sitrep[]>(MOCK_SITREPS);
   const [timeValue, setTimeValue] = useState(100);
+  
+  // Navigation State
+  const [activeDrawer, setActiveDrawer] = useState<null | 'search' | 'layers' | 'filter' | 'menu'>(null);
+  const [currentLayer, setCurrentLayer] = useState<keyof typeof TILE_LAYERS>('dark');
+  const [activeFilters, setActiveFilters] = useState<string[]>(['CONFLICT', 'MARITIME', 'CYBER', 'POLITICAL']);
+  const [isSearching, setIsSearching] = useState(false);
+  const [logs, setLogs] = useState<string[]>(["System initialized.", "Uplink stable."]);
 
-  // Memoize map to prevent unnecessary full re-renders when sidebar updates
+  // Map Navigation
+  const [flyToCenter, setFlyToCenter] = useState<[number, number] | undefined>(undefined);
+  const [flyToZoom, setFlyToZoom] = useState<number | undefined>(undefined);
+
+  const addLog = useCallback((msg: string) => {
+    setLogs(prev => [msg, ...prev].slice(0, 50));
+  }, []);
+
+  const handleSearch = async (query: string) => {
+    setIsSearching(true);
+    addLog(`Initiating OSINT scan for: ${query}`);
+    try {
+      const result = await intelligenceService.searchNewIntelligence(query);
+      addLog(`Scan complete. Found ${result.sitreps.length} new nodes.`);
+      
+      const newSitreps = result.sitreps.map(s => ({ ...s, isNew: true }));
+      setSitreps(prev => {
+        // Simple deduplication by ID
+        const combined = [...newSitreps, ...prev];
+        return Array.from(new Map(combined.map(s => [s.id, s])).values());
+      });
+
+      setFlyToCenter(result.center);
+      setFlyToZoom(result.zoom);
+    } catch (error) {
+      addLog("Critical Error: Search uplink interrupted.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const toggleFilter = (cat: string) => {
+    setActiveFilters(prev => 
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    );
+  };
+
+  // Filter sitreps based on category and (pseudo) time scrubber
+  const filteredSitreps = useMemo(() => {
+    const timeThreshold = new Date();
+    timeThreshold.setDate(timeThreshold.getDate() - (30 - (timeValue / 100 * 30)));
+    
+    return sitreps.filter(s => {
+      const matchCat = activeFilters.includes(s.category);
+      const matchTime = new Date(s.timestamp) <= timeThreshold;
+      return matchCat && matchTime;
+    });
+  }, [sitreps, activeFilters, timeValue]);
+
+  // Memoize map to prevent unnecessary full re-renders
   const mapElement = useMemo(() => (
     <MapEngine 
-      sitreps={MOCK_SITREPS} 
+      sitreps={filteredSitreps} 
       onSelectSitrep={setSelectedSitrep}
       selectedId={selectedSitrep?.id}
+      flyToCenter={flyToCenter}
+      flyToZoom={flyToZoom}
+      currentLayer={currentLayer}
     />
-  ), [selectedSitrep?.id]);
+  ), [filteredSitreps, selectedSitrep?.id, flyToCenter, flyToZoom, currentLayer]);
 
   return (
     <div className="relative w-screen h-screen flex flex-col bg-[#020617] text-slate-200 overflow-hidden font-sans">
       <CommandCenter />
       
       <main className="flex-1 flex pt-14 relative overflow-hidden">
-        {/* Left Toolbar */}
-        <nav className="w-14 border-r border-slate-800 flex flex-col items-center py-6 gap-6 bg-slate-950/50 z-[1050]">
-          <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 cursor-pointer">
-            <MapIcon size={20} />
-          </div>
-          <div className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-500 transition-colors cursor-pointer">
+        {/* Left Nav Bar */}
+        <nav className="w-14 border-r border-slate-800 flex flex-col items-center py-6 gap-6 bg-slate-950/50 z-[1100]">
+          <div 
+            onClick={() => setActiveDrawer(activeDrawer === 'layers' ? null : 'layers')}
+            className={`p-2.5 rounded-lg cursor-pointer transition-all ${activeDrawer === 'layers' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-slate-500 hover:text-emerald-400'}`}
+          >
             <Layers size={20} />
           </div>
-          <div className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-500 transition-colors cursor-pointer">
+          <div 
+            onClick={() => setActiveDrawer(activeDrawer === 'filter' ? null : 'filter')}
+            className={`p-2.5 rounded-lg cursor-pointer transition-all ${activeDrawer === 'filter' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-slate-500 hover:text-emerald-400'}`}
+          >
             <Filter size={20} />
           </div>
-          <div className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-500 transition-colors cursor-pointer mt-auto">
+          <div 
+            onClick={() => setActiveDrawer(activeDrawer === 'search' ? null : 'search')}
+            className={`p-2.5 rounded-lg cursor-pointer mt-auto transition-all ${activeDrawer === 'search' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-slate-500 hover:text-emerald-400'}`}
+          >
             <Search size={20} />
           </div>
-          <div className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-500 transition-colors cursor-pointer">
+          <div 
+            onClick={() => setActiveDrawer(activeDrawer === 'menu' ? null : 'menu')}
+            className={`p-2.5 rounded-lg cursor-pointer transition-all ${activeDrawer === 'menu' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-slate-500 hover:text-emerald-400'}`}
+          >
             <Menu size={20} />
           </div>
         </nav>
+
+        {/* Dynamic Drawers */}
+        <SearchDrawer 
+          isOpen={activeDrawer === 'search'} 
+          onClose={() => setActiveDrawer(null)} 
+          onSearch={handleSearch}
+          isSearching={isSearching}
+        />
+        <LayersDrawer 
+          isOpen={activeDrawer === 'layers'} 
+          onClose={() => setActiveDrawer(null)} 
+          currentLayer={currentLayer}
+          onSetLayer={setCurrentLayer}
+        />
+        <FilterDrawer 
+          isOpen={activeDrawer === 'filter'} 
+          onClose={() => setActiveDrawer(null)} 
+          activeFilters={activeFilters}
+          toggleFilter={toggleFilter}
+        />
+        <MenuDrawer 
+          isOpen={activeDrawer === 'menu'} 
+          onClose={() => setActiveDrawer(null)} 
+          logs={logs}
+        />
 
         {/* Primary Content: Map */}
         <div className="flex-1 relative">
@@ -51,8 +147,8 @@ const App: React.FC = () => {
           {/* Bottom Time Scrubber */}
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1050] w-[60%] px-8 py-4 bg-slate-950/80 backdrop-blur-md border border-slate-800 rounded-sm shadow-2xl">
             <div className="flex justify-between items-center mb-3">
-              <span className="font-mono text-[10px] text-slate-500 uppercase tracking-widest">Time Scrubber: T-30 Days</span>
-              <span className="font-mono text-[10px] text-emerald-400">REALTIME SYNC ACTIVE</span>
+              <span className="font-mono text-[10px] text-slate-500 uppercase tracking-widest">Temporal Analysis Slider</span>
+              <span className="font-mono text-[10px] text-emerald-400">SYNC: T-{30 - Math.floor(timeValue / 100 * 30)} DAYS</span>
             </div>
             <div className="relative group">
               <input 
@@ -72,7 +168,7 @@ const App: React.FC = () => {
             <div className="flex justify-between text-[8px] font-mono text-slate-600 mt-2">
               <span>DAY -30</span>
               <span>DAY -15</span>
-              <span className="text-emerald-500">CURRENT (NOW)</span>
+              <span className="text-emerald-500">CURRENT</span>
             </div>
           </div>
         </div>
@@ -96,8 +192,8 @@ const App: React.FC = () => {
             <span className="text-[8px] font-mono text-slate-500 uppercase tracking-widest">Global Surveillance Active</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-[8px] font-mono text-slate-600 uppercase">Conflict Nodes: </span>
-            <span className="text-[8px] font-mono text-red-500">12</span>
+            <span className="text-[8px] font-mono text-slate-600 uppercase">Nodes: </span>
+            <span className="text-[8px] font-mono text-emerald-500">{filteredSitreps.length} Visible</span>
           </div>
         </div>
         <div className="text-[8px] font-mono text-slate-600 uppercase">

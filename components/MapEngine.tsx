@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, useMap, ZoomControl } from 'react-leaf
 import L from 'leaflet';
 import useSupercluster from 'use-supercluster';
 import { Sitrep, ThreatLevel } from '../types';
-import { MAP_CENTER, INITIAL_ZOOM } from '../constants';
+import { MAP_CENTER, INITIAL_ZOOM, TILE_LAYERS } from '../constants';
 
 // Fix Leaflet marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -18,6 +18,9 @@ interface MapEngineProps {
   sitreps: Sitrep[];
   onSelectSitrep: (sitrep: Sitrep) => void;
   selectedId?: string;
+  flyToCenter?: [number, number];
+  flyToZoom?: number;
+  currentLayer: keyof typeof TILE_LAYERS;
 }
 
 const createClusterIcon = (count: number) => {
@@ -33,38 +36,51 @@ const createClusterIcon = (count: number) => {
   });
 };
 
-const createMarkerIcon = (threatLevel: ThreatLevel, isSelected: boolean) => {
+const createMarkerIcon = (threatLevel: ThreatLevel, isSelected: boolean, isNew: boolean = false) => {
   const color = threatLevel === ThreatLevel.CRITICAL || threatLevel === ThreatLevel.HIGH ? 'rgba(239, 68, 68, 0.8)' : 'rgba(16, 185, 129, 0.8)';
   const shadowColor = threatLevel === ThreatLevel.CRITICAL || threatLevel === ThreatLevel.HIGH ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)';
   
   return L.divIcon({
     html: `
-      <div class="relative w-6 h-6 flex items-center justify-center">
+      <div class="relative w-10 h-10 flex items-center justify-center">
+        <!-- Target Lock Animation for new markers -->
+        ${isNew ? `
+          <div class="absolute inset-0 border border-emerald-500/60 animate-pulse scale-150"></div>
+          <div class="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-emerald-400"></div>
+          <div class="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-emerald-400"></div>
+          <div class="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-emerald-400"></div>
+          <div class="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-emerald-400"></div>
+        ` : ''}
+        
         <div class="w-3 h-3 rounded-full ${isSelected ? 'scale-125' : ''}" style="background-color: ${color}; box-shadow: 0 0 10px ${shadowColor};"></div>
-        <div class="absolute inset-0 rounded-full border-2 animate-ping" style="border-color: ${color}; animation-duration: 2s;"></div>
+        <div class="absolute w-6 h-6 rounded-full border-2 animate-ping" style="border-color: ${color}; animation-duration: 2s;"></div>
         ${isSelected ? `<div class="absolute inset-0 border border-white/50 animate-spin" style="border-style: dashed; animation-duration: 8s;"></div>` : ''}
       </div>
     `,
     className: 'custom-marker-icon',
-    iconSize: L.point(24, 24)
+    iconSize: L.point(40, 40)
   });
 };
 
 const TacticalOverlay = () => {
   return (
     <div className="absolute inset-0 pointer-events-none z-[1000]">
-      {/* Scanline Effect */}
       <div className="w-full h-full opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]"></div>
-      {/* Vignette */}
       <div className="w-full h-full shadow-[inset_0_0_150px_rgba(0,0,0,0.8)]"></div>
     </div>
   );
 };
 
-const MapInner: React.FC<MapEngineProps> = ({ sitreps, onSelectSitrep, selectedId }) => {
+const MapInner: React.FC<MapEngineProps> = ({ sitreps, onSelectSitrep, selectedId, flyToCenter, flyToZoom }) => {
   const map = useMap();
   const [bounds, setBounds] = useState<any>(null);
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
+
+  useEffect(() => {
+    if (flyToCenter && map) {
+      map.flyTo(flyToCenter, flyToZoom || 6, { duration: 2.5, easeLinearity: 0.25 });
+    }
+  }, [flyToCenter, flyToZoom, map]);
 
   useEffect(() => {
     if (!map) return;
@@ -85,7 +101,7 @@ const MapInner: React.FC<MapEngineProps> = ({ sitreps, onSelectSitrep, selectedI
 
   const points = useMemo(() => sitreps.map(s => ({
     type: 'Feature',
-    properties: { cluster: false, sitrepId: s.id, category: s.category, threatLevel: s.threatLevel },
+    properties: { cluster: false, sitrepId: s.id, category: s.category, threatLevel: s.threatLevel, isNew: s.isNew },
     geometry: { type: 'Point', coordinates: [s.coordinates[1], s.coordinates[0]] }
   })), [sitreps]);
 
@@ -128,7 +144,7 @@ const MapInner: React.FC<MapEngineProps> = ({ sitreps, onSelectSitrep, selectedI
           <Marker
             key={`marker-${sitrep.id}`}
             position={[latitude, longitude]}
-            icon={createMarkerIcon(sitrep.threatLevel, sitrep.id === selectedId)}
+            icon={createMarkerIcon(sitrep.threatLevel, sitrep.id === selectedId, sitrep.isNew)}
             eventHandlers={{
               click: () => onSelectSitrep(sitrep)
             }}
@@ -139,7 +155,7 @@ const MapInner: React.FC<MapEngineProps> = ({ sitreps, onSelectSitrep, selectedI
   );
 };
 
-export const MapEngine: React.FC<MapEngineProps> = ({ sitreps, onSelectSitrep, selectedId }) => {
+export const MapEngine: React.FC<MapEngineProps> = (props) => {
   return (
     <div className="relative w-full h-full bg-[#020617]">
       <MapContainer 
@@ -149,10 +165,10 @@ export const MapEngine: React.FC<MapEngineProps> = ({ sitreps, onSelectSitrep, s
         className="w-full h-full"
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url={TILE_LAYERS[props.currentLayer]}
+          attribution='&copy; Aegis-Grid Tactical Data'
         />
-        <MapInner sitreps={sitreps} onSelectSitrep={onSelectSitrep} selectedId={selectedId} />
+        <MapInner {...props} />
         <ZoomControl position="bottomleft" />
       </MapContainer>
       <TacticalOverlay />

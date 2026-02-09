@@ -1,18 +1,20 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sitrep, ThreatLevel } from '../types';
 import { useIntelligence } from '../hooks/useIntelligence';
 import { TerminalText } from './ui/TerminalText';
 import { ThreatGauge } from './ThreatGauge';
 import { TacticalButton } from './ui/TacticalButton';
-import { ChevronRight, ExternalLink, ShieldAlert, Cpu, Globe } from 'lucide-react';
+import { ChevronRight, ExternalLink, ShieldAlert, Cpu, Globe, MapPin, Eye } from 'lucide-react';
+import { GroundTruthViewer } from './GroundTruthViewer';
 
 interface IntelligencePanelProps {
   selectedSitrep: Sitrep | null;
   onClose: () => void;
+  onEnterRecon: (sitrep: Sitrep) => void;
 }
 
-export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({ selectedSitrep, onClose }) => {
+export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({ selectedSitrep, onClose, onEnterRecon }) => {
   const { loading, analysis, error, performAnalysis } = useIntelligence();
 
   useEffect(() => {
@@ -48,6 +50,22 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({ selectedSi
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
+        {/* Ground Truth Section */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+             <h4 className="font-mono text-xs text-slate-500 uppercase tracking-widest flex items-center gap-2">
+               <Eye size={14} className="text-emerald-500" /> Ground Recon Preview
+             </h4>
+             <button 
+               onClick={() => onEnterRecon(selectedSitrep)}
+               className="text-[9px] font-mono text-emerald-400 hover:underline flex items-center gap-1"
+             >
+               IMMERSIVE RECON <ChevronRight size={10} />
+             </button>
+          </div>
+          <GroundTruthViewer coordinates={selectedSitrep.coordinates} autoRotate />
+        </section>
+
         {/* Core Info */}
         <section className="space-y-3">
           <h3 className="text-xl font-bold text-white tracking-tight">{selectedSitrep.title}</h3>
@@ -56,7 +74,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({ selectedSi
             <div className="flex-1 space-y-2">
               <div className="flex justify-between text-[10px] font-mono text-slate-500 uppercase">
                 <span>Coordinates</span>
-                <span className="text-emerald-500">{selectedSitrep.coordinates.join(' , ')}</span>
+                <span className="text-emerald-500 flex items-center gap-1"><MapPin size={8} /> {selectedSitrep.coordinates.join(' , ')}</span>
               </div>
               <div className="flex justify-between text-[10px] font-mono text-slate-500 uppercase">
                 <span>Timestamp</span>
@@ -77,7 +95,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({ selectedSi
         <section className="space-y-4 relative">
           <div className="flex items-center gap-2 mb-2">
             <Cpu className="w-4 h-4 text-emerald-400" />
-            <h4 className="font-mono text-xs text-emerald-400 uppercase tracking-widest">Strategic Deep Analysis</h4>
+            <h4 className="font-mono text-xs text-emerald-400 uppercase tracking-widest">Strategic Deep Analysis (Feb 2026)</h4>
           </div>
 
           {loading ? (
@@ -148,9 +166,12 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({ selectedSi
           </div>
         </section>
 
-        <div className="pt-8">
+        <div className="pt-8 space-y-3">
+          <TacticalButton variant="primary" className="w-full" onClick={() => onEnterRecon(selectedSitrep)}>
+             Initiate Street-Level Recon
+          </TacticalButton>
           <TacticalButton variant="danger" className="w-full">
-            Initiate Deployment
+            Log Deployment Protocols
           </TacticalButton>
         </div>
       </div>

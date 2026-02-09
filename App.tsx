@@ -1,13 +1,14 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { CommandCenter } from './components/CommandCenter';
 import { MapEngine } from './components/MapEngine';
 import { IntelligencePanel } from './components/IntelligencePanel';
 import { SearchDrawer, LayersDrawer, FilterDrawer, MenuDrawer } from './components/SidebarDrawers';
 import { Sitrep } from './types';
 import { MOCK_SITREPS, TILE_LAYERS } from './constants';
-import { Search, Map as MapIcon, Layers, Filter, Menu } from 'lucide-react';
+import { Search, Map as MapIcon, Layers, Filter, Menu, Eye } from 'lucide-react';
 import { intelligenceService } from './services/gemini';
+import { GroundTruthViewer } from './components/GroundTruthViewer';
 
 const App: React.FC = () => {
   const [selectedSitrep, setSelectedSitrep] = useState<Sitrep | null>(null);
@@ -19,11 +20,14 @@ const App: React.FC = () => {
   const [currentLayer, setCurrentLayer] = useState<keyof typeof TILE_LAYERS>('dark');
   const [activeFilters, setActiveFilters] = useState<string[]>(['CONFLICT', 'MARITIME', 'CYBER', 'POLITICAL']);
   const [isSearching, setIsSearching] = useState(false);
-  const [logs, setLogs] = useState<string[]>(["System initialized.", "Uplink stable."]);
+  const [logs, setLogs] = useState<string[]>(["System initialized.", "Uplink stable.", "Temporal context: Feb 2026"]);
 
   // Map Navigation
   const [flyToCenter, setFlyToCenter] = useState<[number, number] | undefined>(undefined);
   const [flyToZoom, setFlyToZoom] = useState<number | undefined>(undefined);
+
+  // Recon Mode
+  const [reconSitrep, setReconSitrep] = useState<Sitrep | null>(null);
 
   const addLog = useCallback((msg: string) => {
     setLogs(prev => [msg, ...prev].slice(0, 50));
@@ -34,7 +38,7 @@ const App: React.FC = () => {
     addLog(`Initiating OSINT scan for: ${query}`);
     try {
       const result = await intelligenceService.searchNewIntelligence(query);
-      addLog(`Scan complete. Found ${result.sitreps.length} new nodes.`);
+      addLog(`Scan complete. Found ${result.sitreps.length} new nodes in early 2026 dataset.`);
       
       const newSitreps = result.sitreps.map(s => ({ ...s, isNew: true }));
       setSitreps(prev => {
@@ -58,10 +62,18 @@ const App: React.FC = () => {
     );
   };
 
-  // Filter sitreps based on category and (pseudo) time scrubber
+  // Sync initial 2026 state
+  useEffect(() => {
+    // Force a search for "Jonglei South Sudan 2026" on initial load to populate current context
+    handleSearch("Current conflict hotspots Jonglei Sudan Eastern DRC February 2026");
+  }, []);
+
+  // Filter sitreps based on category and time scrubber (aligned to 2026)
   const filteredSitreps = useMemo(() => {
-    const timeThreshold = new Date();
-    timeThreshold.setDate(timeThreshold.getDate() - (30 - (timeValue / 100 * 30)));
+    // Current date assumed to be Feb 24, 2026 for the scrubber's "NOW"
+    const currentSimDate = new Date("2026-02-24T00:00:00Z");
+    const timeThreshold = new Date(currentSimDate);
+    timeThreshold.setDate(currentSimDate.getDate() - (30 - (timeValue / 100 * 30)));
     
     return sitreps.filter(s => {
       const matchCat = activeFilters.includes(s.category);
@@ -140,37 +152,62 @@ const App: React.FC = () => {
           logs={logs}
         />
 
-        {/* Primary Content: Map */}
-        <div className="flex-1 relative">
-          {mapElement}
-          
-          {/* Bottom Time Scrubber */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1050] w-[60%] px-8 py-4 bg-slate-950/80 backdrop-blur-md border border-slate-800 rounded-sm shadow-2xl">
-            <div className="flex justify-between items-center mb-3">
-              <span className="font-mono text-[10px] text-slate-500 uppercase tracking-widest">Temporal Analysis Slider</span>
-              <span className="font-mono text-[10px] text-emerald-400">SYNC: T-{30 - Math.floor(timeValue / 100 * 30)} DAYS</span>
+        {/* Primary Content: Map or Recon */}
+        <div className="flex-1 relative bg-black">
+          {reconSitrep ? (
+            <div className="w-full h-full animate-in fade-in zoom-in duration-700">
+               <GroundTruthViewer 
+                coordinates={reconSitrep.coordinates} 
+                isImmersive 
+                autoRotate
+                onClose={() => setReconSitrep(null)} 
+               />
+               
+               {/* Recon HUD overlay specific to 2026 data */}
+               <div className="absolute top-20 left-10 pointer-events-none space-y-2">
+                 <div className="font-mono text-[10px] text-emerald-500 uppercase tracking-[0.3em] bg-black/40 px-3 py-1 border-l-2 border-emerald-500">
+                    Live Uplink: Sector {reconSitrep.id}
+                 </div>
+                 <h2 className="text-2xl font-black text-white bg-black/40 px-3 py-1 italic uppercase tracking-tighter">
+                    {reconSitrep.title}
+                 </h2>
+                 <div className="font-mono text-[10px] text-slate-400 bg-black/40 px-3 py-1">
+                    Temporal Target: Feb 2026 // OSINT Verified
+                 </div>
+               </div>
             </div>
-            <div className="relative group">
-              <input 
-                type="range" 
-                min="0" 
-                max="100" 
-                value={timeValue}
-                onChange={(e) => setTimeValue(parseInt(e.target.value))}
-                className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 hover:accent-emerald-400 transition-all"
-              />
-              <div className="flex justify-between mt-1 px-1">
-                {[...Array(11)].map((_, i) => (
-                  <div key={i} className="w-px h-1 bg-slate-700" />
-                ))}
+          ) : (
+            <>
+              {mapElement}
+              {/* Bottom Time Scrubber */}
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1050] w-[60%] px-8 py-4 bg-slate-950/80 backdrop-blur-md border border-slate-800 rounded-sm shadow-2xl">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="font-mono text-[10px] text-slate-500 uppercase tracking-widest">Temporal Analysis (2026)</span>
+                  <span className="font-mono text-[10px] text-emerald-400">SYNC: FEB 2026 // T-{30 - Math.floor(timeValue / 100 * 30)} DAYS</span>
+                </div>
+                <div className="relative group">
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    value={timeValue}
+                    onChange={(e) => setTimeValue(parseInt(e.target.value))}
+                    className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 hover:accent-emerald-400 transition-all"
+                  />
+                  <div className="flex justify-between mt-1 px-1">
+                    {[...Array(11)].map((_, i) => (
+                      <div key={i} className="w-px h-1 bg-slate-700" />
+                    ))}
+                  </div>
+                </div>
+                <div className="flex justify-between text-[8px] font-mono text-slate-600 mt-2">
+                  <span>JAN 25, 2026</span>
+                  <span>FEB 09, 2026</span>
+                  <span className="text-emerald-500">FEB 24, 2026</span>
+                </div>
               </div>
-            </div>
-            <div className="flex justify-between text-[8px] font-mono text-slate-600 mt-2">
-              <span>DAY -30</span>
-              <span>DAY -15</span>
-              <span className="text-emerald-500">CURRENT</span>
-            </div>
-          </div>
+            </>
+          )}
         </div>
 
         {/* Right Intelligence Panel */}
@@ -179,6 +216,7 @@ const App: React.FC = () => {
             <IntelligencePanel 
               selectedSitrep={selectedSitrep} 
               onClose={() => setSelectedSitrep(null)} 
+              onEnterRecon={(sitrep) => setReconSitrep(sitrep)}
             />
           </div>
         </aside>
@@ -189,15 +227,16 @@ const App: React.FC = () => {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
             <div className="w-1 h-1 bg-emerald-500 rounded-full animate-ping" />
-            <span className="text-[8px] font-mono text-slate-500 uppercase tracking-widest">Global Surveillance Active</span>
+            <span className="text-[8px] font-mono text-slate-500 uppercase tracking-widest">Global Surveillance Active (2026)</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[8px] font-mono text-slate-600 uppercase">Nodes: </span>
             <span className="text-[8px] font-mono text-emerald-500">{filteredSitreps.length} Visible</span>
           </div>
         </div>
-        <div className="text-[8px] font-mono text-slate-600 uppercase">
-          Classification: TOP SECRET // SI // NOFORN
+        <div className="text-[8px] font-mono text-slate-600 uppercase flex items-center gap-2">
+          {reconSitrep && <div className="flex items-center gap-1 text-emerald-400"><Eye size={10} /> RECON MODE ACTIVE</div>}
+          <span>Classification: TOP SECRET // SI // NOFORN</span>
         </div>
       </footer>
     </div>

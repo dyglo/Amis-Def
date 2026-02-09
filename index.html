@@ -69,5 +69,15 @@
 </head>
 <body>
     <div id="root"></div>
+    <script>
+      // Load Google Maps API dynamically with process.env.API_KEY
+      (function() {
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${window.process?.env?.API_KEY || ''}&libraries=places,geometry`;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      })();
+    </script>
 </body>
 </html>

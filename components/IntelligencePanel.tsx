@@ -15,7 +15,8 @@ interface IntelligencePanelProps {
 }
 
 export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({ selectedSitrep, onClose, onEnterRecon }) => {
-  const { loading, analysis, error, performAnalysis } = useIntelligence();
+  const { loading, error, performAnalysis, getAnalysis } = useIntelligence();
+  const analysis = getAnalysis(selectedSitrep?.id);
 
   useEffect(() => {
     if (selectedSitrep) {
@@ -35,7 +36,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({ selectedSi
   }
 
   return (
-    <div className="h-full flex flex-col border-l border-emerald-500/20 bg-slate-950/80 backdrop-blur-xl overflow-hidden shadow-2xl">
+    <div className="h-full flex flex-col border-l border-emerald-500/20 bg-[#020202]/90 backdrop-blur-xl overflow-hidden shadow-2xl">
       {/* Header */}
       <div className="p-4 border-b border-emerald-500/10 flex items-center justify-between bg-emerald-500/5">
         <div className="flex items-center gap-2">
@@ -53,15 +54,15 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({ selectedSi
         {/* Ground Truth Section */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-             <h4 className="font-mono text-xs text-slate-500 uppercase tracking-widest flex items-center gap-2">
-               <Eye size={14} className="text-emerald-500" /> Ground Recon Preview
-             </h4>
-             <button 
-               onClick={() => onEnterRecon(selectedSitrep)}
-               className="text-[9px] font-mono text-emerald-400 hover:underline flex items-center gap-1"
-             >
-               IMMERSIVE RECON <ChevronRight size={10} />
-             </button>
+            <h4 className="font-mono text-xs text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <Eye size={14} className="text-emerald-500" /> Ground Recon Preview
+            </h4>
+            <button
+              onClick={() => onEnterRecon(selectedSitrep)}
+              className="text-[9px] font-mono text-emerald-400 hover:underline flex items-center gap-1"
+            >
+              IMMERSIVE RECON <ChevronRight size={10} />
+            </button>
           </div>
           <GroundTruthViewer coordinates={selectedSitrep.coordinates} autoRotate />
         </section>
@@ -95,7 +96,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({ selectedSi
         <section className="space-y-4 relative">
           <div className="flex items-center gap-2 mb-2">
             <Cpu className="w-4 h-4 text-emerald-400" />
-            <h4 className="font-mono text-xs text-emerald-400 uppercase tracking-widest">Strategic Deep Analysis (Feb 2026)</h4>
+            <h4 className="font-mono text-xs text-emerald-400 uppercase tracking-widest">Strategic Deep Analysis (2020-Present)</h4>
           </div>
 
           {loading ? (
@@ -114,7 +115,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({ selectedSi
                 <span className="text-[10px] font-mono text-slate-500 uppercase">Geopolitical implications</span>
                 <TerminalText text={analysis.geopoliticalImplications} speed={10} className="text-xs text-slate-300" />
               </div>
-              
+
               <div className="space-y-2">
                 <span className="text-[10px] font-mono text-slate-500 uppercase">Recommended Response</span>
                 <TerminalText text={analysis.recommendedResponse} speed={15} className="text-xs text-emerald-400/80" />
@@ -125,10 +126,10 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({ selectedSi
                   <span className="text-[10px] font-mono text-slate-500 uppercase">Grounding Sources</span>
                   <div className="flex flex-wrap gap-2">
                     {analysis.links.map((link, i) => (
-                      <a 
-                        key={i} 
-                        href={link.uri} 
-                        target="_blank" 
+                      <a
+                        key={i}
+                        href={link.uri}
+                        target="_blank"
                         rel="noreferrer"
                         className="flex items-center gap-1.5 px-2 py-1 bg-slate-800/50 hover:bg-emerald-500/20 text-[10px] font-mono text-slate-400 hover:text-emerald-400 border border-slate-700 hover:border-emerald-500/50 transition-all rounded"
                       >
@@ -168,7 +169,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({ selectedSi
 
         <div className="pt-8 space-y-3">
           <TacticalButton variant="primary" className="w-full" onClick={() => onEnterRecon(selectedSitrep)}>
-             Initiate Street-Level Recon
+            Initiate Street-Level Recon
           </TacticalButton>
           <TacticalButton variant="danger" className="w-full">
             Log Deployment Protocols

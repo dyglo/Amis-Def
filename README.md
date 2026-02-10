@@ -15,6 +15,11 @@ View your app in AI Studio: https://ai.studio/apps/drive/1lRTO9D9gDURigtjAZA_6iy
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Configure [.env.local](.env.local):
+   - `SERPER_API_KEY` for Serper.dev news ingestion
+   - `OPENAI_API_KEY` for `gpt-4o`/`gpt-4o-mini` reasoning
+   - `VITE_GOOGLE_MAPS_API_KEY` for ground recon map views
+3. Run the backend proxy:
+   `npm run dev:server`
+4. Run the app:
    `npm run dev`

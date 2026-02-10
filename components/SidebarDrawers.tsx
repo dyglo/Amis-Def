@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Map as MapIcon, Filter, Settings, FileText, ChevronRight, Download, Terminal, X, SearchIcon, Loader2 } from 'lucide-react';
+import { Search, Map as MapIcon, Filter, Settings, FileText, ChevronRight, Download, Terminal, X, Loader2 } from 'lucide-react';
 import { TILE_LAYERS } from '../constants';
 import { TacticalButton } from './ui/TacticalButton';
 
@@ -12,11 +12,11 @@ interface DrawerProps {
 }
 
 const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, title, children }) => (
-  <div className={`absolute left-14 top-14 bottom-6 transition-all duration-300 z-[1060] ${isOpen ? 'w-80' : 'w-0'} overflow-hidden bg-slate-950/90 border-r border-slate-800 backdrop-blur-md`}>
+  <div className={`absolute left-14 top-14 bottom-6 transition-all duration-300 z-[1060] ${isOpen ? 'w-80' : 'w-0'} overflow-hidden bg-[#020202]/95 border-r border-slate-800 backdrop-blur-md`}>
     <div className="w-80 h-full flex flex-col">
       <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-        <h3 className="font-mono text-xs text-emerald-400 uppercase tracking-widest">{title}</h3>
-        <button onClick={onClose} className="text-slate-500 hover:text-emerald-400 transition-colors">
+        <h3 className="font-mono text-xs text-slate-200 uppercase tracking-widest">{title}</h3>
+        <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
           <X size={16} />
         </button>
       </div>
@@ -34,7 +34,7 @@ export const SearchDrawer: React.FC<{
   isSearching: boolean;
 }> = ({ isOpen, onClose, onSearch, isSearching }) => {
   const [query, setQuery] = useState('');
-  
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) onSearch(query);
@@ -49,9 +49,9 @@ export const SearchDrawer: React.FC<{
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search Region / Conflict..."
-            className="w-full bg-slate-900/50 border border-slate-700 p-3 pl-10 rounded font-mono text-xs text-slate-300 focus:border-emerald-500/50 outline-none"
+            className="w-full bg-slate-900/50 border border-slate-700 p-3 pl-10 rounded font-mono text-xs text-slate-300 focus:border-white/50 outline-none"
           />
-          <SearchIcon className="absolute left-3 top-3 text-slate-500" size={16} />
+          <Search className="absolute left-3 top-3 text-slate-500" size={16} />
         </div>
         <TacticalButton variant="primary" className="w-full" onClick={() => onSearch(query)}>
           {isSearching ? <Loader2 className="animate-spin" size={14} /> : 'Execute Scan'}
@@ -59,8 +59,8 @@ export const SearchDrawer: React.FC<{
         <div className="space-y-2 pt-4">
           <p className="text-[10px] font-mono text-slate-500 uppercase">Suggested Scans</p>
           {['Middle East Activity', 'Eastern Europe Border', 'South China Sea OSINT'].map(s => (
-            <button key={s} onClick={() => { setQuery(s); onSearch(s); }} className="block w-full text-left p-2 text-xs font-mono text-slate-400 hover:text-emerald-400 border border-transparent hover:border-emerald-500/20 rounded transition-all">
-              > {s}
+            <button key={s} onClick={() => { setQuery(s); onSearch(s); }} className="block w-full text-left p-2 text-xs font-mono text-slate-400 hover:text-white border border-transparent hover:border-white/20 rounded transition-all">
+              {"> "} {s}
             </button>
           ))}
         </div>
@@ -81,9 +81,8 @@ export const LayersDrawer: React.FC<{
         <button
           key={key}
           onClick={() => onSetLayer(key)}
-          className={`w-full p-4 border flex items-center justify-between font-mono text-xs transition-all ${
-            currentLayer === key ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' : 'border-slate-800 bg-slate-900/50 text-slate-500 hover:border-slate-700'
-          }`}
+          className={`w-full p-4 border flex items-center justify-between font-mono text-xs transition-all ${currentLayer === key ? 'border-white/20 bg-white/5 text-slate-200' : 'border-slate-800 bg-slate-900/50 text-slate-500 hover:border-slate-700'
+            }`}
         >
           <span className="uppercase">{key} Recon</span>
           {currentLayer === key && <ChevronRight size={14} />}
@@ -109,7 +108,7 @@ export const FilterDrawer: React.FC<{
               type="checkbox"
               checked={activeFilters.includes(cat)}
               onChange={() => toggleFilter(cat)}
-              className="accent-emerald-500"
+              className="accent-slate-500"
             />
             <span className="font-mono text-xs text-slate-300 uppercase tracking-widest">{cat}</span>
           </label>
@@ -130,7 +129,7 @@ export const MenuDrawer: React.FC<{
         <h4 className="font-mono text-[10px] text-slate-500 uppercase flex items-center gap-2">
           <Terminal size={12} /> Live API Downlink
         </h4>
-        <div className="bg-slate-950 p-3 rounded border border-slate-800 h-64 overflow-y-auto font-mono text-[10px] text-emerald-500/70 leading-relaxed custom-scrollbar">
+        <div className="bg-slate-950 p-3 rounded border border-slate-800 h-64 overflow-y-auto font-mono text-[10px] text-slate-400 leading-relaxed custom-scrollbar">
           {logs.map((log, i) => (
             <div key={i} className="mb-1">
               <span className="text-slate-600 mr-2">[{new Date().toLocaleTimeString()}]</span>
@@ -140,7 +139,7 @@ export const MenuDrawer: React.FC<{
           {logs.length === 0 && <div className="text-slate-800">NO ACTIVE LOGS</div>}
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 gap-2">
         <TacticalButton variant="secondary" className="justify-start">
           <Download size={14} /> Export SITREPs

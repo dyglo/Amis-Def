@@ -363,7 +363,7 @@ export const MapEngine: React.FC<MapEngineProps> = (props) => {
       >
         <TileLayerAny
           url={TILE_LAYERS[props.currentLayer]}
-          attribution='&copy; Aegis-Grid Tactical Data'
+          attribution='&copy; Alpha legrand Tactical Data'
         />
         <MapInner {...props} />
         <ZoomControl position="bottomleft" />

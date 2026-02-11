@@ -67,8 +67,8 @@ export const CommandCenter: React.FC = () => {
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-950 animate-pulse"></div>
           </div>
           <div>
-            <h1 className="text-lg font-black tracking-tighter text-white leading-none">AEGIS-GRID</h1>
-            <p className="text-[8px] font-mono text-emerald-500 tracking-[0.3em] uppercase opacity-70">Defense Intel Platform</p>
+            <h1 className="text-lg font-black tracking-tighter text-white leading-none">Alpha legrand</h1>
+            <p className="text-[8px] font-mono text-emerald-500 tracking-[0.3em] uppercase opacity-70">Intelligence Platform</p>
           </div>
         </div>
 
